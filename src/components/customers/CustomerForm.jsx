@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../../common/SafeIcon';
 import { addCustomer, createReviewRequest } from '../../lib/supabase';
+import { automateReviewRequest } from '../../lib/emailService';
+import { validateCustomerData, sanitizeCustomerData, ValidationError } from '../../lib/validation';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { FiUser, FiMail, FiPhone, FiCalendar, FiTag, FiX } = FiIcons;
@@ -37,7 +39,8 @@ const CustomerForm = ({ onSuccess, onCancel }) => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const customerData = {
+      // Prepare customer data
+      const rawCustomerData = {
         user_id: user.id,
         name: data.name,
         email: data.email,
@@ -46,17 +49,38 @@ const CustomerForm = ({ onSuccess, onCancel }) => {
         tags: tags
       };
 
+      // Validate and sanitize data
+      validateCustomerData(rawCustomerData);
+      const customerData = sanitizeCustomerData(rawCustomerData);
+
       const customer = await addCustomer(customerData);
       
-      // Automatically create a review request
+      // Create review request entry
       await createReviewRequest(customer.id);
       
-      toast.success('Customer added and review request sent!');
+      // Send automated review request email
+      try {
+        await automateReviewRequest(customer, user.id);
+        toast.success('Customer added and review request sent!');
+      } catch (emailError) {
+        console.error('Email sending failed:', emailError);
+        toast.success('Customer added! Review request will be sent shortly.');
+      }
       reset();
       setTags([]);
       onSuccess && onSuccess();
     } catch (error) {
-      toast.error(error.message || 'Failed to add customer');
+      console.error('Customer creation error:', error);
+      
+      if (error instanceof ValidationError) {
+        toast.error(error.message);
+      } else if (error.message?.includes('duplicate key value')) {
+        toast.error('A customer with this email already exists.');
+      } else if (error.message?.includes('email')) {
+        toast.error('Please check the email address and try again.');
+      } else {
+        toast.error('Failed to add customer. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

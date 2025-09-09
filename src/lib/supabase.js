@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://yktuypkxpuxxlwrpwzbo.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrdHV5cGt4cHV4eGx3cnB3emJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0NzM3OTYsImV4cCI6MjA2NzA0OTc5Nn0.Ah7Mb925xKOzXuGaJa_896KzUa8Jod5GULePitNXVRk';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (supabaseUrl === 'https://your-project.supabase.co' || supabaseKey === 'your-anon-key') {
-  throw new Error('Missing Supabase variables');
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables. Please check your .env file.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -45,7 +45,7 @@ export const createTables = async () => {
 // Customer operations
 export const addCustomer = async (customerData) => {
   const { data, error } = await supabase
-    .from('customers_mhc2024')
+    .from('customers')
     .insert([customerData])
     .select();
   
@@ -55,7 +55,7 @@ export const addCustomer = async (customerData) => {
 
 export const getCustomers = async (userId) => {
   const { data, error } = await supabase
-    .from('customers_mhc2024')
+    .from('customers')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
@@ -67,7 +67,7 @@ export const getCustomers = async (userId) => {
 // Review request operations
 export const createReviewRequest = async (customerId) => {
   const { data, error } = await supabase
-    .from('review_requests_mhc2024')
+    .from('review_requests')
     .insert([{
       customer_id: customerId,
       sent_at: new Date().toISOString(),
@@ -81,12 +81,12 @@ export const createReviewRequest = async (customerId) => {
 
 export const getReviewRequests = async (userId) => {
   const { data, error } = await supabase
-    .from('review_requests_mhc2024')
+    .from('review_requests')
     .select(`
       *,
-      customers_mhc2024!inner(*)
+      customers!inner(*)
     `)
-    .eq('customers_mhc2024.user_id', userId)
+    .eq('customers.user_id', userId)
     .order('sent_at', { ascending: false });
   
   if (error) throw error;
@@ -96,7 +96,7 @@ export const getReviewRequests = async (userId) => {
 // Review operations
 export const submitReview = async (reviewData) => {
   const { data, error } = await supabase
-    .from('reviews_mhc2024')
+    .from('reviews')
     .insert([reviewData])
     .select();
   
@@ -106,12 +106,12 @@ export const submitReview = async (reviewData) => {
 
 export const getReviews = async (userId) => {
   const { data, error } = await supabase
-    .from('reviews_mhc2024')
+    .from('reviews')
     .select(`
       *,
-      customers_mhc2024!inner(*)
+      customers!inner(*)
     `)
-    .eq('customers_mhc2024.user_id', userId)
+    .eq('customers.user_id', userId)
     .order('submitted_at', { ascending: false });
   
   if (error) throw error;
@@ -121,7 +121,7 @@ export const getReviews = async (userId) => {
 // Alert operations
 export const createAlert = async (alertData) => {
   const { data, error } = await supabase
-    .from('alerts_mhc2024')
+    .from('alerts')
     .insert([alertData])
     .select();
   
@@ -131,7 +131,7 @@ export const createAlert = async (alertData) => {
 
 export const getAlerts = async (userId) => {
   const { data, error } = await supabase
-    .from('alerts_mhc2024')
+    .from('alerts')
     .select('*')
     .eq('user_id', userId)
     .is('read_at', null)
@@ -143,7 +143,7 @@ export const getAlerts = async (userId) => {
 
 export const markAlertAsRead = async (alertId) => {
   const { data, error } = await supabase
-    .from('alerts_mhc2024')
+    .from('alerts')
     .update({ read_at: new Date().toISOString() })
     .eq('id', alertId)
     .select();
@@ -159,7 +159,7 @@ export const getAnalytics = async (userId) => {
       getCustomers(userId),
       getReviewRequests(userId),
       getReviews(userId),
-      supabase.from('alerts_mhc2024').select('*').eq('user_id', userId)
+      supabase.from('alerts').select('*').eq('user_id', userId)
     ]);
 
     const totalRequests = reviewRequests.length;
@@ -194,7 +194,7 @@ export const getAnalytics = async (userId) => {
 // User profile operations
 export const createUserProfile = async (userData) => {
   const { data, error } = await supabase
-    .from('users_mhc2024')
+    .from('users')
     .insert([userData])
     .select();
   
@@ -204,7 +204,7 @@ export const createUserProfile = async (userData) => {
 
 export const getUserProfile = async (userId) => {
   const { data, error } = await supabase
-    .from('users_mhc2024')
+    .from('users')
     .select('*')
     .eq('id', userId)
     .single();
@@ -215,11 +215,14 @@ export const getUserProfile = async (userId) => {
 
 // Admin helper to check if user is admin
 export const isAdminUser = (user) => {
-  // Add your own email here to become an admin
-  const adminEmails = [
-    'admin@myhappycustomers.com',
-    'superadmin@myhappycustomers.com',
-    'your-email@example.com'  // 👈 Replace with your email
-  ];
-  return user && adminEmails.includes(user.email);
+  if (!user) return false;
+  
+  const adminEmailsEnv = import.meta.env.VITE_ADMIN_EMAILS;
+  if (!adminEmailsEnv) {
+    console.warn('VITE_ADMIN_EMAILS environment variable not set');
+    return false;
+  }
+  
+  const adminEmails = adminEmailsEnv.split(',').map(email => email.trim());
+  return adminEmails.includes(user.email);
 };

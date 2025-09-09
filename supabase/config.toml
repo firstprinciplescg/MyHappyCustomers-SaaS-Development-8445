@@ -1,0 +1,52 @@
+[project]
+# Your project ID (replace with actual ID)
+project_id = "yktuypkxpuxxlwrpwzbo"
+
+[api]
+# Port to use for the API URL.
+port = 54321
+# Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
+# endpoints. public and storage are always included.
+schemas = ["public", "storage", "graphql_public"]
+# Extra schemas to add to the search_path of every request. public is always included.
+extra_search_path = ["public", "extensions"]
+# The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
+# for accidental or malicious requests.
+max_rows = 1000
+
+[db]
+# Port to use for the local database URL.
+port = 54322
+# The database major version to use. This has to be the same as your remote database's. Run `SHOW server_version;` on the remote database to check.
+major_version = 15
+
+[studio]
+# Port to use for Supabase Studio.
+port = 54323
+
+# Email template used for sending magic link emails.
+[auth.email.template]
+[auth.email.template.magic_link]
+subject = "Your MyHappyCustomers magic link"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.recovery]
+subject = "Reset your MyHappyCustomers password"
+content_path = "./supabase/templates/recovery.html"
+
+# Use an external SMTP server to send emails.
+[auth.email.smtp]
+# host = "smtp.sendgrid.net"
+# port = 587
+# user = "apikey"
+# pass = "your_sendgrid_api_key"
+# admin_email = "admin@myhappycustomers.com"
+# sender_name = "MyHappyCustomers"
+
+[storage]
+# The maximum file size allowed (e.g. "5MB", "500KB").
+file_size_limit = "50MB"
+
+[functions]
+# Specify which functions are served over HTTP(S).
+enabled = ["send-email", "schedule-follow-ups", "process-scheduled-emails"]
